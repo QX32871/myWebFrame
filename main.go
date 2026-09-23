@@ -1,20 +1,23 @@
 package main
 
 import (
-	"fmt"
 	"frame"
 	"net/http"
 )
 
 func main() {
 	router := frame.New()
-	router.GET("/", func(w http.ResponseWriter, req *http.Request) {
-		fmt.Fprintf(w, "URL.Path = %q\n", req.URL.Path)
+	router.GET("/", func(c *frame.Context) {
+		c.HTML(http.StatusOK, "<h1>Hello World!</h1>")
 	})
-	router.GET("/hello", func(w http.ResponseWriter, req *http.Request) {
-		for k, v := range req.Header {
-			fmt.Fprintf(w, "Header[%q] = %q\n", k, v)
-		}
+	router.GET("/hello", func(c *frame.Context) {
+		c.String(http.StatusOK, "hello %s, you're at %s\n", c.Query("name"), c.Path)
+	})
+	router.POST("/login", func(c *frame.Context) {
+		c.JSON(http.StatusOK, frame.H{
+			"username": c.PostForm("username"),
+			"password": c.PostForm("password"),
+		})
 	})
 	router.Run(":9999")
 }

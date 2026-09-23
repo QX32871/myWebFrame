@@ -1,0 +1,26 @@
+# Compiled binaries
+# Root module is `My-WebFrame`, so `go build .` emits a binary of that name.
+/My-WebFrame
+/My-WebFrame.exe
+
+# Test and coverage output
+*.test
+*.out
+coverage.*
+
+# Go workspace files (multi-module local overrides)
+go.work
+go.work.sum
+
+# IDE / editor
+.idea/
+.vscode/
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Claude Code local (per-machine) settings
+.claude
+CLAUDE.md
