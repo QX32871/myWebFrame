@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push: # 每个分支的每次 commit
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true # 新 commit 推上来时取消上一次，省 runner
+
+jobs:
+  verify:
+    name: Build, vet, fmt, test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod # 跟着 go.mod 走，不硬编码版本
+          cache: true
+
+      # ---------- 根模块 (My-WebFrame) ----------
+      - name: Build (root)
+        run: go build ./...
+
+      - name: Vet (root)
+        run: go vet ./...
+
+      - name: Test (root)
+        run: go test ./...
+
+      # ---------- frame 模块 ----------
+      # frame 有独立 go.mod，根目录的 ./... 不会枚举它。
+      # 缺了这几步，框架自身的测试永远不会被编译或执行。
+      - name: Build (frame)
+        working-directory: frame
+        run: go build ./...
+
+      - name: Vet (frame)
+        working-directory: frame
+        run: go vet ./...
+
+      - name: Test (frame)
+        working-directory: frame
+        run: go test -v ./...
+
+      # gofmt 走文件系统而非模块，根目录跑一次覆盖两个模块
+      - name: Check formatting
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "::error::gofmt found unformatted files:"
+            echo "$unformatted"
+            exit 1
+          fi

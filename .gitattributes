@@ -1,0 +1,4 @@
+# 统一行尾为 LF。
+# 优先于 core.autocrlf，因此在 Windows 上检出也不会变成 CRLF，
+# CI 里 gofmt 的结果在所有平台一致。
+* text=auto eol=lf
