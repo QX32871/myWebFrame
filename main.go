@@ -13,11 +13,16 @@ func main() {
 	router.GET("/hello", func(c *frame.Context) {
 		c.String(http.StatusOK, "hello %s, you're at %s\n", c.Query("name"), c.Path)
 	})
-	router.POST("/login", func(c *frame.Context) {
+	router.GET("/hello/:name", func(c *frame.Context) {
+		c.String(http.StatusOK, "hello %s, you're at %s\n", c.Query("name"), c.Path)
+	})
+	router.POST("/assets/*filepath", func(c *frame.Context) {
 		c.JSON(http.StatusOK, frame.H{
-			"username": c.PostForm("username"),
-			"password": c.PostForm("password"),
+			"filepath": c.Param("filepath"),
 		})
 	})
-	router.Run(":9999")
+	err := router.Run(":9999")
+	if err != nil {
+		return
+	}
 }
