@@ -1,6 +1,7 @@
 package frame
 
 import (
+	"log"
 	"net/http"
 )
 
@@ -11,28 +12,54 @@ type H map[string]interface{}
 
 // Engine impl the  interface of ServerHttp
 type Engine struct {
+	*RouterGroup
 	router *router
+	groups []*RouterGroup // 顶层Engine保存所有的分组
+}
+
+type RouterGroup struct {
+	prefix      string
+	middlewares []HandlerFunc // 中间件支持
+	parent      *RouterGroup  // 支持子分组
+	engine      *Engine       // 所有的分组都复用同一个路由引擎实例
 }
 
 // New constructor of frame.Engine
 func New() *Engine {
-	// 创建Engine之后返回它的值
-	return &Engine{router: newRouter()}
+	engine := &Engine{router: newRouter()}
+	engine.RouterGroup = &RouterGroup{engine: engine}
+	engine.groups = []*RouterGroup{engine.RouterGroup}
+	return engine
 }
 
-// 添加路由方法
-func (engine *Engine) addRouter(method string, pattern string, handler HandlerFunc) {
-	engine.router.addRoute(method, pattern, handler)
+// Group is defined to create a new RouterGroup
+// remember all groups share the same Engine instance
+func (group *RouterGroup) Group(prefix string) *RouterGroup {
+	engine := group.engine
+	newGroup := &RouterGroup{
+		prefix: group.prefix + prefix,
+		parent: group,
+		engine: engine,
+	}
+	engine.groups = append(engine.groups, newGroup)
+	return newGroup
+}
+
+// 添加路由方法，兼容使用分组添加路由和普通方式添加路由两种添加方法
+func (group *RouterGroup) addRouter(method string, uriStr string, handler HandlerFunc) {
+	pattern := group.prefix + uriStr
+	log.Printf("Route %4s - %s", method, pattern)
+	group.engine.router.addRoute(method, pattern, handler)
 }
 
 // GET func to add GET request
-func (engine *Engine) GET(pattern string, handler HandlerFunc) {
-	engine.addRouter("GET", pattern, handler)
+func (group *RouterGroup) GET(pattern string, handler HandlerFunc) {
+	group.addRouter("GET", pattern, handler)
 }
 
 // POST func to add POST request
-func (engine *Engine) POST(pattern string, handler HandlerFunc) {
-	engine.addRouter("POST", pattern, handler)
+func (group *RouterGroup) POST(pattern string, handler HandlerFunc) {
+	group.addRouter("POST", pattern, handler)
 }
 
 // Run func to start http server
