@@ -14,6 +14,9 @@ type Context struct {
 	Method     string
 	Params     map[string]string
 	StatusCode int
+	// middleware
+	handlers []HandlerFunc
+	index    int
 }
 
 // newContext 构造Context并返回内存地址
@@ -23,7 +26,22 @@ func newContext(writer http.ResponseWriter, req *http.Request) *Context {
 		Req:    *req,
 		Path:   req.URL.Path,
 		Method: req.Method,
+		index:  -1,
 	}
+}
+
+func (c *Context) Next() {
+	c.index++
+	s := len(c.handlers)
+	for ; c.index < s; c.index++ {
+		c.handlers[c.index](c)
+	}
+}
+
+// Fail 中断链上剩余的 handler，并返回一个 JSON 错误响应
+func (c *Context) Fail(code int, err string) {
+	c.index = len(c.handlers)
+	c.JSON(code, H{"message": err})
 }
 
 // Param 获取参数
