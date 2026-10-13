@@ -1,8 +1,10 @@
 package frame
 
 import (
+	"html/template"
 	"log"
 	"net/http"
+	"path"
 	"strings"
 )
 
@@ -14,8 +16,10 @@ type H map[string]interface{}
 // Engine impl the  interface of ServerHttp
 type Engine struct {
 	*RouterGroup
-	router *router
-	groups []*RouterGroup // 顶层Engine保存所有的分组
+	router        *router
+	groups        []*RouterGroup // 顶层Engine保存所有的分组
+	htmlTemplates *template.Template
+	funcMap       template.FuncMap
 }
 
 type RouterGroup struct {
@@ -82,5 +86,35 @@ func (engine *Engine) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
 	}
 	c := newContext(writer, req)
 	c.handlers = middlewares
+	c.engine = engine
 	engine.router.handle(c)
+}
+
+// 静态文件处理
+func (group *RouterGroup) createStaticHandler(relativePath string, fs http.FileSystem) HandlerFunc {
+	absolutionPath := path.Join(group.prefix, relativePath)
+	fileServer := http.StripPrefix(absolutionPath, http.FileServer(fs))
+	return func(c *Context) {
+		file := c.Param("filepath")
+		// 检查文件是否存在和访问权限
+		if _, err := fs.Open(file); err != nil {
+			c.Status(http.StatusNotFound)
+			return
+		}
+		fileServer.ServeHTTP(c.Writer, c.Req)
+	}
+}
+
+func (group *RouterGroup) Static(relativePath string, root string) {
+	handler := group.createStaticHandler(relativePath, http.Dir(root))
+	urlPattern := path.Join(relativePath, "/*filepath")
+	group.GET(urlPattern, handler)
+}
+
+func (engine *Engine) SetFuncMap(funcMap template.FuncMap) {
+	engine.funcMap = funcMap
+}
+
+func (engine *Engine) LoadHTMLGlob(pattern string) {
+	engine.htmlTemplates = template.Must(template.New("").Funcs(engine.funcMap).ParseGlob(pattern))
 }

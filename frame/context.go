@@ -9,11 +9,12 @@ import (
 // Context 封装Context结构体，实现writer和req以及常用属性的封装，提供直接访问的能力
 type Context struct {
 	Writer     http.ResponseWriter
-	Req        http.Request
+	Req        *http.Request
 	Path       string
 	Method     string
 	Params     map[string]string
 	StatusCode int
+	engine     *Engine
 	// middleware
 	handlers []HandlerFunc
 	index    int
@@ -23,7 +24,7 @@ type Context struct {
 func newContext(writer http.ResponseWriter, req *http.Request) *Context {
 	return &Context{
 		Writer: writer,
-		Req:    *req,
+		Req:    req,
 		Path:   req.URL.Path,
 		Method: req.Method,
 		index:  -1,
@@ -88,8 +89,10 @@ func (c *Context) Data(code int, data []byte) {
 	c.Writer.Write(data)
 }
 
-func (c *Context) HTML(code int, html string) {
+func (c *Context) HTML(code int, name string, data interface{}) {
 	c.SetHeader("Content-Type", "text/html")
 	c.Status(code)
-	c.Writer.Write([]byte(html))
+	if err := c.engine.htmlTemplates.ExecuteTemplate(c.Writer, name, data); err != nil {
+		c.Fail(500, err.Error())
+	}
 }
